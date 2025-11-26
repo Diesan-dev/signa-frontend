@@ -2,20 +2,27 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import AgoraRTC from "agora-rtc-sdk-ng";
 import { Realtime } from "ably";
-import { 
-  Mic, 
-  MicOff, 
-  Video, 
-  VideoOff, 
-  PhoneOff, 
+import {
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  PhoneOff,
   MessageSquare,
   Settings,
-  MoreVertical
+  MoreVertical,
+  Hand // ⭐ Nuevo icono para Sign Recognition
 } from 'lucide-react';
 import Chat from "./Chat";
 import { env } from '../../config/env';
 
+// ⭐ NUEVO: Importar componentes de Sign Recognition
+import { SignRecognitionEngine, ParticipantSignsDisplay } from '../signRecognition';
+import { useSignRecognition } from '../../hooks/useSignRecognition';
+import { ablySignService } from '../../services/signRecognition';
+
 const APP_ID = "3807e6c8dfc4434faa3a57e3d67c6842";
+const ABLY_KEY = "cCqgBQ.afR32Q:TlHR0hT_yKHMfHYCJU48MbRqlWkiGtmRdyGBYowc9cI";
 
 export default function Meet({ meet }) {
     const navigate = useNavigate();
@@ -31,11 +38,29 @@ export default function Meet({ meet }) {
     const [hasUnread, setHasUnread] = useState(false);
     const [isJoining, setIsJoining] = useState(false);
 
+    // ⭐ NUEVO: Estados para Sign Recognition
+    const [signRecognitionEnabled, setSignRecognitionEnabled] = useState(false);
+    const [ablySignChannel, setAblySignChannel] = useState(null);
+
     const localContainerRef = useRef(null);
     const clientRef = useRef(null);
     const isSafari =
         typeof navigator !== "undefined" &&
         /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+    // ⭐ NUEVO: Hook de Sign Recognition
+    const {
+        localSign,
+        participantSigns,
+        signHistory,
+        stats,
+        handleLocalSignDetected,
+        clearHistory
+    } = useSignRecognition({
+        sessionId: meet?.uuid,
+        userId: uid,
+        ablyChannel: ablySignChannel
+    });
 
     const waitForElement = async (selector, timeout = 3000) => {
         const start = Date.now();
@@ -211,6 +236,15 @@ export default function Meet({ meet }) {
 
             setRemoteUsers({ ...client.remoteUsers });
             setJoined(true);
+
+            // ⭐ NUEVO: Conectar Ably para Sign Recognition después de unirse
+            try {
+                const channel = await ablySignService.connect(ABLY_KEY, meet.uuid);
+                setAblySignChannel(channel);
+                console.log('✅ Ably Sign Recognition connected');
+            } catch (err) {
+                console.error('❌ Error connecting Ably for signs:', err);
+            }
         } catch (err) {
             console.error("Error join:", err);
             alert("Error al unirse. Revisa consola.");
@@ -246,6 +280,10 @@ export default function Meet({ meet }) {
 
             await client.leave();
 
+            // ⭐ NUEVO: Desconectar Ably Sign Recognition
+            ablySignService.disconnect();
+            setAblySignChannel(null);
+
             setJoined(false);
             setRemoteUsers({});
             setLocalTracks({ audio: null, video: null });
@@ -275,7 +313,7 @@ export default function Meet({ meet }) {
         const initAbly = async () => {
             try {
                 ablyClient = new Realtime({
-                    key: "cCqgBQ.afR32Q:TlHR0hT_yKHMfHYCJU48MbRqlWkiGtmRdyGBYowc9cI",
+                    key: ABLY_KEY,
                 });
 
                 const channel = ablyClient.channels.get(meet.uuid);
@@ -298,11 +336,11 @@ export default function Meet({ meet }) {
                     setMessages((prev) => {
                         // Verificar si ya existe un mensaje idéntico
                         const exists = prev.some(
-                            m => m.uid === data.uid && 
-                                 m.text === data.text && 
+                            m => m.uid === data.uid &&
+                                 m.text === data.text &&
                                  m.time === data.time
                         );
-                        
+
                         if (exists) {
                             // Es duplicado, no hacer nada
                             return prev;
@@ -402,6 +440,15 @@ export default function Meet({ meet }) {
         setShowChat(!showChat);
     };
 
+    // ⭐ NUEVO: Toggle para Sign Recognition
+    const toggleSignRecognition = () => {
+        if (!localTracks.video) {
+            alert("Necesitas tener la cámara activa para usar reconocimiento de señas");
+            return;
+        }
+        setSignRecognitionEnabled(!signRecognitionEnabled);
+    };
+
     const handleLogin = async (name) => {
         const uid = String(Math.floor(Math.random() * 2032));
         setUid(uid);
@@ -454,6 +501,13 @@ export default function Meet({ meet }) {
                                 <span className="text-sm font-medium">En vivo</span>
                             </div>
                             <span className="text-sm text-gray-400">{meet.uuid}</span>
+                            {/* ⭐ NUEVO: Indicador de Sign Recognition */}
+                            {signRecognitionEnabled && (
+                                <div className="flex items-center gap-2 bg-green-600 px-3 py-1 rounded-full">
+                                    <Hand size={14} />
+                                    <span className="text-xs font-medium">IA Activa</span>
+                                </div>
+                            )}
                         </div>
                         <button className="p-2 hover:bg-gray-800 rounded-lg transition-colors">
                             <MoreVertical size={20} />
@@ -465,7 +519,7 @@ export default function Meet({ meet }) {
                         {/* Video Area */}
                         <div className="flex-1 relative p-4">
                             <div className="grid gap-4 w-full h-full" style={{
-                                gridTemplateColumns: Object.keys(remoteUsers).length === 0 ? '1fr' : 
+                                gridTemplateColumns: Object.keys(remoteUsers).length === 0 ? '1fr' :
                                                      Object.keys(remoteUsers).length === 1 ? 'repeat(2, 1fr)' :
                                                      'repeat(auto-fit, minmax(400px, 1fr))'
                             }}>
@@ -486,6 +540,18 @@ export default function Meet({ meet }) {
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* ⭐ NUEVO: Sign Recognition Engine Overlay */}
+                                    {signRecognitionEnabled && localTracks.video && (
+                                        <SignRecognitionEngine
+                                            videoTrack={localTracks.video}
+                                            sessionId={meet.uuid}
+                                            userId={uid}
+                                            onSignDetected={handleLocalSignDetected}
+                                            isEnabled={signRecognitionEnabled}
+                                        />
+                                    )}
+
                                     <div className="absolute bottom-4 left-4 bg-black bg-opacity-70 px-3 py-1 rounded-lg flex items-center gap-2">
                                         <span className="text-sm font-medium">{name} (Tú)</span>
                                         {!micEnabled && <MicOff size={16} className="text-red-500" />}
@@ -519,6 +585,12 @@ export default function Meet({ meet }) {
                                     </div>
                                 ))}
                             </div>
+
+                            {/* ⭐ NUEVO: Display de señas de participantes */}
+                            <ParticipantSignsDisplay
+                                participantSigns={participantSigns}
+                                currentUserId={uid}
+                            />
                         </div>
 
                         {/* Chat Sidebar */}
@@ -542,8 +614,8 @@ export default function Meet({ meet }) {
                             <button
                                 onClick={toggleMic}
                                 className={`p-4 rounded-full transition-all ${
-                                    micEnabled 
-                                        ? 'bg-gray-800 hover:bg-gray-700' 
+                                    micEnabled
+                                        ? 'bg-gray-800 hover:bg-gray-700'
                                         : 'bg-red-600 hover:bg-red-700'
                                 }`}
                             >
@@ -553,8 +625,8 @@ export default function Meet({ meet }) {
                             <button
                                 onClick={toggleCamera}
                                 className={`p-4 rounded-full transition-all ${
-                                    cameraEnabled 
-                                        ? 'bg-gray-800 hover:bg-gray-700' 
+                                    cameraEnabled
+                                        ? 'bg-gray-800 hover:bg-gray-700'
                                         : 'bg-red-600 hover:bg-red-700'
                                 }`}
                             >
@@ -574,8 +646,21 @@ export default function Meet({ meet }) {
                             >
                                 <MessageSquare size={24} />
                                 {hasUnread && !showChat && (
-                                    <div className="absolute top-1 right-1 w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
+                                    <div className="absolute top-1 right-1 w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>     
                                 )}
+                            </button>
+
+                            {/* ⭐ NUEVO: Botón de Sign Recognition */}
+                            <button
+                                onClick={toggleSignRecognition}
+                                className={`p-4 rounded-full transition-all ${
+                                    signRecognitionEnabled
+                                        ? 'bg-green-600 hover:bg-green-700'
+                                        : 'bg-gray-800 hover:bg-gray-700'
+                                }`}
+                                title={signRecognitionEnabled ? 'Desactivar reconocimiento de señas' : 'Activar reconocimiento de señas'}
+                            >
+                                <Hand size={24} />
                             </button>
 
                             <button className="p-4 bg-gray-800 hover:bg-gray-700 rounded-full transition-colors">

@@ -1,7 +1,6 @@
 // src/services/signRecognition/ablySignService.js
 
 import { Realtime } from 'ably';
-import { SIGN_RECOGNITION_CONFIG } from '../../utils/signRecognition/constants';
 
 class AblySignService {
   constructor() {
@@ -22,21 +21,21 @@ class AblySignService {
     }
 
     try {
-      console.log('📡 Connecting to Ably...');
+      console.log('📡 Connecting to Ably for sign recognition...');
 
       this.client = new Realtime({
         key: ablyKey,
-        // O usar authUrl si tienes auth server
-        // authUrl: '/api/ably/auth'
       });
 
-      const channelName = `${SIGN_RECOGNITION_CONFIG.ably.channelPrefix}:${sessionId}`;
+      // ⭐ USAR EL MISMO CANAL QUE EL CHAT (sin prefijo sign-recognition)
+      // Esto evita el error 40160 de permisos
+      const channelName = sessionId;
       this.channel = this.client.channels.get(channelName);
 
       await this.channel.attach();
       this.isConnected = true;
 
-      console.log(`✅ Connected to Ably channel: ${channelName}`);
+      console.log(`✅ Connected to Ably channel for signs: ${channelName}`);
       
       return this.channel;
     } catch (error) {
@@ -56,7 +55,8 @@ class AblySignService {
     }
 
     try {
-      await this.channel.publish('sign-detected', {
+      // ⭐ CAMBIAR nombre del evento a 'sign-message' para diferenciarlo del chat
+      await this.channel.publish('sign-message', {
         ...signData,
         timestamp: Date.now()
       });
