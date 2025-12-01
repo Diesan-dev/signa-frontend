@@ -1,4 +1,5 @@
-import { MessageCircle, Hand, Subtitles } from 'lucide-react';
+import { MessageCircle, Hand, Subtitles, Copy, ExternalLink } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 /**
  * Componente para mostrar el detalle de un meet con sus mensajes
@@ -53,6 +54,29 @@ export default function MeetDetail({ meet, onClose }) {
     });
   };
 
+  const handleCopyUrl = async () => {
+    const meetUrl = `${window.location.origin}/meet/${meet.uuid}`;
+    try {
+      await navigator.clipboard.writeText(meetUrl);
+      toast.success('Enlace copiado al portapapeles', { toastId: 'history-url-copied' });
+    } catch {
+      toast.error('Error al copiar el enlace', { toastId: 'history-copy-error' });
+    }
+  };
+
+  const handleCopyId = async () => {
+    try {
+      await navigator.clipboard.writeText(meet.uuid);
+      toast.success('ID copiado al portapapeles', { toastId: 'history-id-copied' });
+    } catch {
+      toast.error('Error al copiar el ID', { toastId: 'history-id-copy-error' });
+    }
+  };
+
+  const handleOpenMeet = () => {
+    window.open(`/meet/${meet.uuid}`, '_blank');
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -62,20 +86,6 @@ export default function MeetDetail({ meet, onClose }) {
             <div>
               <h2 className="text-2xl font-bold mb-2">Detalle del Meet</h2>
               <p className="text-orange-100">{formatDateTime(meet.createdAt)}</p>
-              {meet.endSessionTime && (
-                <p className="text-orange-100 text-sm mt-1">
-                  Finalizada: {(() => {
-                    const isoString = meet.endSessionTime.endsWith('Z') ? meet.endSessionTime : meet.endSessionTime + 'Z';
-                    const date = new Date(isoString);
-                    const peruDate = new Date(date.getTime() - (5 * 60 * 60 * 1000));
-                    return peruDate.toLocaleTimeString('es-PE', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      timeZone: 'UTC'
-                    });
-                  })()}
-                </p>
-              )}
             </div>
             <button
               onClick={onClose}
@@ -87,14 +97,65 @@ export default function MeetDetail({ meet, onClose }) {
             </button>
           </div>
 
+          {/* ID de la sala */}
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-orange-100 text-sm font-medium">ID de la sala:</span>
+              <span className="text-white font-mono text-sm">{meet.uuid}</span>
+              <button
+                onClick={handleCopyId}
+                className="text-orange-100 hover:text-white transition-colors p-1"
+                title="Copiar ID"
+              >
+                <Copy size={16} />
+              </button>
+            </div>
+
+            {/* URL de la sala */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-orange-100 text-sm font-medium">URL:</span>
+              <span className="text-white text-sm font-mono break-all">
+                {window.location.origin}/meet/{meet.uuid}
+              </span>
+              <button
+                onClick={handleCopyUrl}
+                className="text-orange-100 hover:text-white transition-colors p-1"
+                title="Copiar URL"
+              >
+                <Copy size={16} />
+              </button>
+            </div>
+          </div>
+
           {/* Estado */}
           <div className="mt-4">
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+            <span className={`px-3 py-1 rounded-full text-sm font-medium inline-flex items-center gap-1.5 ${
               meet.isActive 
                 ? 'bg-green-400 text-white' 
-                : 'bg-orange-300 text-orange-900'
+                : 'bg-orange-200 text-orange-900'
             }`}>
-              {meet.isActive ? '🟢 Sesión Activa' : '⚫ Sesión Finalizada'}
+              {meet.isActive 
+                ? '🟢 Sesión Activa' 
+                : `⚫ Sesión Finalizada a las ${meet.endSessionTime ? ` ${(() => {
+                    const isoString = meet.endSessionTime.endsWith('Z') ? meet.endSessionTime : meet.endSessionTime + 'Z';
+                    const date = new Date(isoString);
+                    const peruDate = new Date(date.getTime() - (5 * 60 * 60 * 1000));
+                    return peruDate.toLocaleTimeString('es-PE', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      timeZone: 'UTC'
+                    });
+                  })()}` : ''}`
+              }
+              {meet.isActive && (
+                <button
+                  onClick={handleOpenMeet}
+                  className="hover:opacity-70 transition-opacity"
+                  title="Abrir sala"
+                >
+                  <ExternalLink size={14} />
+                </button>
+              )}
             </span>
           </div>
         </div>

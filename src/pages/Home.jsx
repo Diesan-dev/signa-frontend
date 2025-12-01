@@ -31,7 +31,7 @@ export default function Home() {
             } else {
               // La sesión ya no está activa, limpiar localStorage
               localStorage.removeItem('activeMeet');
-              toast.info('La sesión guardada ya no está activa');
+              toast.info('La sesión guardada ya no está activa', { toastId: 'session-inactive' });
             }
           })
           .catch((error) => {
@@ -57,14 +57,14 @@ export default function Home() {
         if (!validation.isActive) {
           setActiveMeet(null);
           localStorage.removeItem('activeMeet');
-          toast.warning('La sesión ha sido finalizada');
+          toast.warning('La sesión ha sido finalizada', { toastId: 'session-ended' });
         }
       } catch (error) {
         // Si hay error, probablemente la sesión fue eliminada
         console.error('Error al validar sesión:', error);
         setActiveMeet(null);
         localStorage.removeItem('activeMeet');
-        toast.warning('La sesión ya no está disponible');
+        toast.warning('La sesión ya no está disponible', { toastId: 'session-unavailable' });
       }
     }, 30000); // 30 segundos
 
@@ -97,7 +97,7 @@ export default function Home() {
         setCanCreate(remaining > 0);
       }
     } catch {
-      toast.error('Error al cargar información de sesiones');
+      toast.error('Error al cargar información de sesiones', { toastId: 'load-session-error' });
       setCanCreate(false);
     } finally {
       setLoading(false);
@@ -116,7 +116,7 @@ export default function Home() {
 
   const handleCreateMeet = async () => {
     if (!canCreate && !isPremium) {
-      toast.warning('Has alcanzado el límite de sesiones diarias. Actualiza a Premium para sesiones ilimitadas.');
+      toast.warning('Has alcanzado el límite de sesiones diarias. Actualiza a Premium para sesiones ilimitadas.', { toastId: 'session-limit' });
       return;
     }
 
@@ -140,7 +140,7 @@ export default function Home() {
       // Cargar detalles completos del meet
       loadMeetDetails(meet.id);
 
-      toast.success('¡Reunión creada exitosamente! El enlace ha sido copiado.');
+      toast.success('¡Reunión creada exitosamente! El enlace ha sido copiado.', { toastId: 'meet-created' });
 
       if (!isPremium) {
         const newSessionsUsed = sessionsUsed + 1;
@@ -149,7 +149,7 @@ export default function Home() {
         setCanCreate(remaining > 0);
       }
     } catch {
-      toast.error('Error al crear la sesión');
+      toast.error('Error al crear la sesión', { toastId: 'create-meet-error' });
     }
   };
 
@@ -159,7 +159,7 @@ export default function Home() {
     // Solo limpiar el estado local y localStorage (sin eliminar del backend)
     setActiveMeet(null);
     localStorage.removeItem('activeMeet');
-    toast.success('Sesión finalizada exitosamente');
+    toast.success('Sesión finalizada exitosamente', { toastId: 'meet-ended' });
   };
 
   const handleCopyUrl = async () => {
@@ -167,9 +167,9 @@ export default function Home() {
 
     try {
       await navigator.clipboard.writeText(activeMeet.url);
-      toast.success('Enlace copiado al portapapeles');
+      toast.success('Enlace copiado al portapapeles', { toastId: 'url-copied' });
     } catch {
-      toast.error('Error al copiar el enlace');
+      toast.error('Error al copiar el enlace', { toastId: 'copy-error' });
     }
   };
 
