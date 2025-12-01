@@ -236,7 +236,7 @@ export default function Meet({ meet }) {
 
             setRemoteUsers({ ...client.remoteUsers });
             setJoined(true);
-            
+            /*
             // ⭐ NUEVO: Conectar Ably para Sign Recognition después de unirse
             try {
                 const channel = await ablySignService.connect(ABLY_KEY, meet.uuid);
@@ -245,7 +245,7 @@ export default function Meet({ meet }) {
             } catch (err) {
                 console.error('❌ Error connecting Ably for signs:', err);
             }
-                
+            */  
         } catch (err) {
             console.error("Error join:", err);
             alert("Error al unirse. Revisa consola.");
