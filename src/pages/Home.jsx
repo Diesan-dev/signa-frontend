@@ -121,7 +121,9 @@ export default function Home() {
     }
 
     try {
-      const meet = await meetService.createNewMeet({});
+      const meet = await meetService.createNewMeet({
+        startTime: new Date().toISOString()
+      });
 
       const meetUrl = `${window.location.origin}/meet/${meet.uuid}`;
       await navigator.clipboard.writeText(meetUrl);
@@ -132,7 +134,7 @@ export default function Home() {
         url: meetUrl,
         createdAt: new Date().toISOString()
       };
-      
+
       setActiveMeet(activeMeetData);
       // Persistir en localStorage
       localStorage.setItem('activeMeet', JSON.stringify(activeMeetData));
@@ -153,14 +155,22 @@ export default function Home() {
     }
   };
 
-  const handleEndMeet = () => {
+  const handleEndMeet = async () => {
     if (!activeMeet) return;
 
-    // Solo limpiar el estado local y localStorage (sin eliminar del backend)
-    setActiveMeet(null);
-    localStorage.removeItem('activeMeet');
-    toast.success('Sesión finalizada exitosamente', { toastId: 'meet-ended' });
+    try {
+      await meetService.endMeet(activeMeet.id, new Date().toISOString());
+
+      setActiveMeet(null);
+      localStorage.removeItem('activeMeet');
+
+      toast.success('Sesión finalizada exitosamente', { toastId: 'meet-ended' });
+    } catch (e) {
+      console.error(e);
+      toast.error('Error al finalizar la sesión', { toastId: 'end-meet-error' });
+    }
   };
+
 
   const handleCopyUrl = async () => {
     if (!activeMeet) return;
@@ -184,9 +194,9 @@ export default function Home() {
     const date = new Date(isoString);
     // Ajustar a hora de Perú (UTC-5)
     const peruDate = new Date(date.getTime() - (5 * 60 * 60 * 1000));
-    return peruDate.toLocaleDateString('es-PE', { 
-      day: '2-digit', 
-      month: '2-digit', 
+    return peruDate.toLocaleDateString('es-PE', {
+      day: '2-digit',
+      month: '2-digit',
       year: 'numeric',
       timeZone: 'UTC'
     });
@@ -198,8 +208,8 @@ export default function Home() {
     const date = new Date(isoString);
     // Ajustar a hora de Perú (UTC-5)
     const peruDate = new Date(date.getTime() - (5 * 60 * 60 * 1000));
-    return peruDate.toLocaleTimeString('es-PE', { 
-      hour: '2-digit', 
+    return peruDate.toLocaleTimeString('es-PE', {
+      hour: '2-digit',
       minute: '2-digit',
       hour12: false,
       timeZone: 'UTC'

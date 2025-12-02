@@ -24,6 +24,12 @@ export const baseService = {
         const response = await api.put(url, data, config);
         return response.data;
     },
+
+    patch: async (url, data, config = {}) => {
+        const response = await api.patch(url, data, config);
+        return response.data;
+    },
+
     
     delete: async (url, config = {}) => {
         const response = await api.delete(url, config);

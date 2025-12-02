@@ -16,9 +16,10 @@ export const meetService = {
     deleteMeet: async (id) => {
         return baseService.delete('/meets/' + id);
     },
-    endMeet: async (id) => {
-        return baseService.patch('/meets/' + id + '/end');
+    endMeet: async (id, startTime) => {
+        return baseService.patch('/meets/' + id + '/end', { startTime });
     },
+
     validateMeet: async (id) => {
         return baseService.get('/meets/' + id + '/validate');
     },
